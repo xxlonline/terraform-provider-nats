@@ -30,7 +30,7 @@ type NkeyResource struct {
 // NkeyResourceModel describes the resource data model.
 type NkeyResourceModel struct {
 	Type types.String `tfsdk:"type"`
-	ID   types.String `tfsdk:"od"`
+	ID   types.String `tfsdk:"id"`
 }
 
 func (r *NkeyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -117,7 +117,7 @@ func (r *NkeyResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	prefix, _, err := nkeys.DecodeSeed([]byte(data.ID.String()))
+	prefix, _, err := nkeys.DecodeSeed([]byte(data.ID.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError("读取 NKey", err.Error())
 		return

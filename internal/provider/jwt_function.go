@@ -4,10 +4,11 @@
 package provider
 
 import (
+	"strconv"
+
 	"context"
 	"encoding/json"
 
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
@@ -34,16 +35,8 @@ func (r JwtFunction) Definition(_ context.Context, _ function.DefinitionRequest,
 		Summary:             "Jwt function",
 		MarkdownDescription: "Echoes given argument as result",
 		Parameters: []function.Parameter{
-			function.ObjectParameter{
-				AttributeTypes: map[string]attr.Type{
-					"sub":  basetypes.StringType{},
-					"iss":  basetypes.StringType{},
-					"name": basetypes.StringType{},
-					"aud":  basetypes.StringType{},
-					"exp":  basetypes.StringType{},
-					"nbf":  basetypes.StringType{},
-					"nats": basetypes.StringType{},
-				},
+			function.MapParameter{
+				ElementType:         basetypes.StringType{},
 				Name:                "value",
 				MarkdownDescription: "值",
 				AllowNullValue:      false,
@@ -71,32 +64,27 @@ func decodeNKey(seed string) (nkeys.PrefixByte, string, error) {
 }
 
 func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
-	var data struct {
-		Issuer    *string `tfsdk:"iss"`
-		Subject   *string `tfsdk:"sub"`
-		Name      *string `tfsdk:"name"`
-		Audience  *string `tfsdk:"aud"`
-		Expires   *int64  `tfsdk:"exp"`
-		NotBefore *int64  `tfsdk:"nbf"`
-		Nats      *string `tfsdk:"nats"`
-	}
+	data := map[string]string{}
 
 	resp.Error = function.ConcatFuncErrors(req.Arguments.Get(ctx, &data))
 
-	if data.Issuer == nil {
+	iss, ok := data["iss"]
+	if !ok {
 		resp.Error = function.NewArgumentFuncError(0, "iss 不能为空")
 		return
 	}
-	if data.Subject == nil {
+	sub, ok := data["sub"]
+	if !ok {
 		resp.Error = function.NewArgumentFuncError(0, "sub 不能为空")
 		return
 	}
-	if data.Name == nil {
+	name, ok := data["name"]
+	if !ok {
 		resp.Error = function.NewArgumentFuncError(0, "name 不能为空")
 		return
 	}
 
-	subject, err := nkeys.FromSeed([]byte(*data.Subject))
+	subject, err := nkeys.FromSeed([]byte(sub))
 	if err != nil {
 		resp.Error = function.NewFuncError("sub 错误")
 		return
@@ -106,13 +94,13 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 		resp.Error = function.NewFuncError("sub 错误")
 		return
 	}
-	prefix, _, err := nkeys.DecodeSeed([]byte(*data.Subject))
+	prefix, _, err := nkeys.DecodeSeed([]byte(sub))
 	if err != nil {
 		resp.Error = function.NewFuncError("sub 错误")
 		return
 	}
 
-	issuer, err := nkeys.FromSeed([]byte(*data.Issuer))
+	issuer, err := nkeys.FromSeed([]byte(iss))
 	if err != nil {
 		resp.Error = function.NewFuncError("iss 错误")
 	}
@@ -121,18 +109,23 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	if prefix == nkeys.PrefixByteOperator {
 		cliams := jwt.NewOperatorClaims(subjectPublicKey)
 		cliams.Subject = subjectPublicKey
-		cliams.Name = *data.Name
-		if data.Audience != nil {
-			cliams.Audience = *data.Audience
+		cliams.Name = name
+
+		aud, ok := data["aud"]
+		if ok {
+			cliams.Audience = aud
 		}
-		if data.Expires != nil {
-			cliams.Expires = *data.Expires
+		exp, ok := data["exp"]
+		if ok {
+			cliams.Expires, _ = strconv.ParseInt(exp, 10, 64)
 		}
-		if data.NotBefore != nil {
-			cliams.NotBefore = *data.NotBefore
+		nbf, ok := data["nbf"]
+		if ok {
+			cliams.NotBefore, _ = strconv.ParseInt(nbf, 10, 64)
 		}
-		if data.Nats != nil {
-			err := json.Unmarshal([]byte(*data.Nats), &cliams.Operator)
+		nats, ok := data["nats"]
+		if ok {
+			err := json.Unmarshal([]byte(nats), &cliams.Operator)
 			if err != nil {
 				resp.Error = function.NewFuncError("nats 错误")
 				return
@@ -158,19 +151,23 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	} else if prefix == nkeys.PrefixByteAccount {
 		cliams := jwt.NewAccountClaims(subjectPublicKey)
 		cliams.Subject = subjectPublicKey
-		cliams.Name = *data.Name
-		if data.Audience != nil {
-			cliams.Audience = *data.Audience
-		}
-		if data.Expires != nil {
-			cliams.Expires = *data.Expires
-		}
-		if data.NotBefore != nil {
-			cliams.NotBefore = *data.NotBefore
-		}
+		cliams.Name = name
 
-		if data.Nats != nil {
-			err := json.Unmarshal([]byte(*data.Nats), &cliams.Account)
+		aud, ok := data["aud"]
+		if ok {
+			cliams.Audience = aud
+		}
+		exp, ok := data["exp"]
+		if ok {
+			cliams.Expires, _ = strconv.ParseInt(exp, 10, 64)
+		}
+		nbf, ok := data["nbf"]
+		if ok {
+			cliams.NotBefore, _ = strconv.ParseInt(nbf, 10, 64)
+		}
+		nats, ok := data["nats"]
+		if ok {
+			err := json.Unmarshal([]byte(nats), &cliams.Account)
 			if err != nil {
 				resp.Error = function.NewFuncError("nats 错误")
 				return
@@ -200,18 +197,23 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	} else if prefix == nkeys.PrefixByteUser {
 		cliams := jwt.NewUserClaims(subjectPublicKey)
 		cliams.Subject = subjectPublicKey
-		cliams.Name = *data.Name
-		if data.Audience != nil {
-			cliams.Audience = *data.Audience
+		cliams.Name = name
+
+		aud, ok := data["aud"]
+		if ok {
+			cliams.Audience = aud
 		}
-		if data.Expires != nil {
-			cliams.Expires = *data.Expires
+		exp, ok := data["exp"]
+		if ok {
+			cliams.Expires, _ = strconv.ParseInt(exp, 10, 64)
 		}
-		if data.NotBefore != nil {
-			cliams.NotBefore = *data.NotBefore
+		nbf, ok := data["nbf"]
+		if ok {
+			cliams.NotBefore, _ = strconv.ParseInt(nbf, 10, 64)
 		}
-		if data.Nats != nil {
-			err := json.Unmarshal([]byte(*data.Nats), &cliams.User)
+		nats, ok := data["nats"]
+		if ok {
+			err := json.Unmarshal([]byte(nats), &cliams.User)
 			if err != nil {
 				resp.Error = function.NewFuncError("nats 错误")
 				return
