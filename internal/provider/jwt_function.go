@@ -33,7 +33,7 @@ func (r JwtFunction) Metadata(_ context.Context, req function.MetadataRequest, r
 func (r JwtFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
 	resp.Definition = function.Definition{
 		Summary:             "Jwt function",
-		MarkdownDescription: "Echoes given argument as result",
+		MarkdownDescription: "生成JWT",
 		Parameters: []function.Parameter{
 			function.MapParameter{
 				ElementType:         basetypes.StringType{},
@@ -133,7 +133,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 			for index, signingKey := range cliams.Operator.SigningKeys {
 				prefix, publicKey, err := decodeNKey(signingKey)
 				if err != nil {
-					resp.Error = function.NewFuncError("signing_key 接码错误")
+					resp.Error = function.NewFuncError("signing_key 错误")
 					return
 				}
 				if prefix != nkeys.PrefixByteOperator {
@@ -177,7 +177,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 
 				prefix, publicKey, err := decodeNKey(signingKey)
 				if err != nil {
-					resp.Error = function.NewFuncError("signing_key 接码错误")
+					resp.Error = function.NewFuncError("signing_key 错误")
 					return
 				}
 				if prefix != nkeys.PrefixByteAccount {
