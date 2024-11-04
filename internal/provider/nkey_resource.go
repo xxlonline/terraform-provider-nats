@@ -4,7 +4,9 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,8 +31,11 @@ type NkeyResource struct {
 
 // NkeyResourceModel describes the resource data model.
 type NkeyResourceModel struct {
-	Type types.String `tfsdk:"type"`
-	ID   types.String `tfsdk:"id"`
+	Type    types.String `tfsdk:"type"`
+	ID      types.String `tfsdk:"id"`
+	Subject types.String `tfsdk:"subject"`
+	Private types.String `tfsdk:"private"`
+	Public  types.String `tfsdk:"public"`
 }
 
 func (r *NkeyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -52,6 +57,18 @@ func (r *NkeyResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Computed:            true,
 				MarkdownDescription: "ID",
 			},
+			"subject": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Subject",
+			},
+			"private": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Private",
+			},
+			"public": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Public",
+			},
 		},
 	}
 }
@@ -62,9 +79,7 @@ func (r *NkeyResource) Configure(ctx context.Context, req resource.ConfigureRequ
 func (r *NkeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data NkeyResourceModel
 
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -92,8 +107,28 @@ func (r *NkeyResource) Create(ctx context.Context, req resource.CreateRequest, r
 		resp.Diagnostics.AddError("访问 NKey", err.Error())
 		return
 	}
-
 	data.ID = types.StringValue(string(seed))
+
+	subject, err := keys.PublicKey()
+	if err != nil {
+		resp.Diagnostics.AddError("访问 NKey", err.Error())
+		return
+	}
+	data.Subject = types.StringValue(subject)
+
+	_, rawSeed, err := nkeys.DecodeSeed(seed)
+	if err != nil {
+		resp.Diagnostics.AddError("解析 NKey", err.Error())
+		return
+	}
+
+	pub, priv, err := ed25519.GenerateKey(bytes.NewReader(rawSeed))
+	if err != nil {
+		resp.Diagnostics.AddError("解析 NKey", err.Error())
+		return
+	}
+	data.Public = types.StringValue(b64Enc.EncodeToString(pub))
+	data.Private = types.StringValue(b64Enc.EncodeToString(priv))
 
 	// Write logs using the tflog package
 	// Documentation: https://terraform.io/plugin/log
@@ -106,8 +141,10 @@ func (r *NkeyResource) Create(ctx context.Context, req resource.CreateRequest, r
 func (r *NkeyResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data NkeyResourceModel
 
-	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	if data.ID.IsUnknown() {
 		resp.Diagnostics.AddError(
@@ -117,7 +154,7 @@ func (r *NkeyResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	prefix, _, err := nkeys.DecodeSeed([]byte(data.ID.ValueString()))
+	prefix, rawSeed, err := nkeys.DecodeSeed([]byte(data.ID.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError("读取 NKey", err.Error())
 		return
@@ -134,61 +171,49 @@ func (r *NkeyResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	if resp.Diagnostics.HasError() {
+	keys, err := nkeys.FromSeed([]byte(data.ID.ValueString()))
+	if err != nil {
+		resp.Diagnostics.AddError("读取 NKey", err.Error())
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
-	//     return
-	// }
+	subject, err := keys.PublicKey()
+	if err != nil {
+		resp.Diagnostics.AddError("访问 NKey", err.Error())
+		return
+	}
+	data.Subject = types.StringValue(subject)
 
-	// Save updated data into Terraform state
+	pub, priv, err := ed25519.GenerateKey(bytes.NewReader(rawSeed))
+	if err != nil {
+		resp.Diagnostics.AddError("解析 NKey", err.Error())
+		return
+	}
+	data.Public = types.StringValue(b64Enc.EncodeToString(pub))
+	data.Private = types.StringValue(b64Enc.EncodeToString(priv))
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *NkeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data NkeyResourceModel
 
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update example, got error: %s", err))
-	//     return
-	// }
-
-	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *NkeyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data NkeyResourceModel
 
-	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete example, got error: %s", err))
-	//     return
-	// }
 }
 
 func (r *NkeyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

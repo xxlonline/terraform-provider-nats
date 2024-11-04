@@ -22,3 +22,6 @@ NATS NKey
 ### Read-Only
 
 - `id` (String) ID
+- `private` (String) Private
+- `public` (String) Public
+- `subject` (String) Subject
