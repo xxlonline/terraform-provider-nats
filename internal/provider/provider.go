@@ -77,7 +77,9 @@ func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasour
 }
 
 func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{}
+	return []func() function.Function{
+		NewJwtFunction,
+	}
 }
 
 func New(version string) func() provider.Provider {
