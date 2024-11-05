@@ -89,7 +89,7 @@ func UpdateNKey(data *NkeyResourceModel) error {
 	if prefix == nkeys.PrefixByteOperator {
 		data.Type = types.StringValue("Operator")
 	} else if prefix == nkeys.PrefixByteAccount {
-		data.Type = types.StringValue("Operator")
+		data.Type = types.StringValue("Account")
 	} else if prefix == nkeys.PrefixByteUser {
 		data.Type = types.StringValue("User")
 	} else {
