@@ -247,6 +247,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	}
 
 	// ID
+	cliams.Claims().ID = ""
 	cliams.Claims().ID, err = hash(*cliams.Claims())
 
 	// 颁发时间
