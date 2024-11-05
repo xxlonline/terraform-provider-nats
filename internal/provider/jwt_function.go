@@ -249,7 +249,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	// 颁发时间
 	iat, ok := data["iat"]
 	if ok {
-		cliams.Claims().IssuedAt, _ = strconv.ParseInt(iat, 10, 64)
+		cliams.Claims().IssuedAt, err = strconv.ParseInt(iat, 10, 64)
 		if err != nil {
 			resp.Error = function.NewFuncError("iat 错误")
 			return
@@ -259,6 +259,10 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	// ID
 	cliams.Claims().ID = ""
 	cliams.Claims().ID, err = hash(*cliams.Claims())
+	if err != nil {
+		resp.Error = function.NewFuncError("iat 错误")
+		return
+	}
 
 	// 头
 	header, err := serialize(&jwt.Header{Type: jwt.TokenTypeJwt, Algorithm: jwt.AlgorithmNkey})
