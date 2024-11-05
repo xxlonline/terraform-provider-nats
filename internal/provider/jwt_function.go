@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"crypto/sha512"
 	"fmt"
 	"strconv"
 
@@ -245,6 +246,9 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 		return
 	}
 
+	// ID
+	cliams.Claims().ID, err = hash(*cliams.Claims())
+
 	// 颁发时间
 	iat, ok := data["iat"]
 	if ok {
@@ -280,6 +284,16 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	token := fmt.Sprintf("%s.%s", toSign, eSig)
 
 	resp.Error = function.ConcatFuncErrors(resp.Result.Set(ctx, token))
+}
+
+func hash(c interface{}) (string, error) {
+	j, err := json.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	h := sha512.New512_256()
+	h.Write(j)
+	return b32Enc.EncodeToString(h.Sum(nil)), nil
 }
 
 func encodeToString(d []byte) string {
