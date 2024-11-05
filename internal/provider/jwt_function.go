@@ -237,11 +237,11 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	cliams.Encode(issuer)
 
 	// 颁发时间
-	ita, ok := data["ita"]
+	iat, ok := data["iat"]
 	if ok {
-		cliams.Claims().IssuedAt, _ = strconv.ParseInt(ita, 10, 64)
+		cliams.Claims().IssuedAt, _ = strconv.ParseInt(iat, 10, 64)
 		if err != nil {
-			resp.Error = function.NewFuncError("ita 错误")
+			resp.Error = function.NewFuncError("iat 错误")
 		}
 	}
 
