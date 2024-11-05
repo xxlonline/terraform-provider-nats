@@ -246,10 +246,6 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 		return
 	}
 
-	// ID
-	cliams.Claims().ID = ""
-	cliams.Claims().ID, err = hash(*cliams.Claims())
-
 	// 颁发时间
 	iat, ok := data["iat"]
 	if ok {
@@ -259,6 +255,10 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 			return
 		}
 	}
+
+	// ID
+	cliams.Claims().ID = ""
+	cliams.Claims().ID, err = hash(*cliams.Claims())
 
 	// 头
 	header, err := serialize(&jwt.Header{Type: jwt.TokenTypeJwt, Algorithm: jwt.AlgorithmNkey})
