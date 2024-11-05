@@ -234,7 +234,10 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	}
 
 	// 编码
-	cliams.Encode(issuer)
+	_, err = cliams.Encode(issuer)
+	if err != nil {
+		resp.Error = function.NewFuncError("编码错误")
+	}
 
 	// 颁发时间
 	iat, ok := data["iat"]
