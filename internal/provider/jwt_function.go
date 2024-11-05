@@ -124,6 +124,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	if prefix == nkeys.PrefixByteOperator {
 		if issuerPrefix != nkeys.PrefixByteOperator {
 			resp.Error = function.NewFuncError("iss 错误")
+			return
 		}
 
 		ocliams := jwt.NewOperatorClaims(subjectPublicKey)
@@ -152,6 +153,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	} else if prefix == nkeys.PrefixByteAccount {
 		if issuerPrefix != nkeys.PrefixByteOperator {
 			resp.Error = function.NewFuncError("iss 错误")
+			return
 		}
 
 		ocliams := jwt.NewAccountClaims(subjectPublicKey)
@@ -183,6 +185,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	} else if prefix == nkeys.PrefixByteUser {
 		if issuerPrefix != nkeys.PrefixByteAccount {
 			resp.Error = function.NewFuncError("iss 错误")
+			return
 		}
 
 		ocliams := jwt.NewUserClaims(subjectPublicKey)
@@ -221,6 +224,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 		cliams.Claims().Expires, err = strconv.ParseInt(exp, 10, 64)
 		if err != nil {
 			resp.Error = function.NewFuncError("exp 错误")
+			return
 		}
 	}
 
@@ -230,6 +234,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 		cliams.Claims().NotBefore, _ = strconv.ParseInt(nbf, 10, 64)
 		if err != nil {
 			resp.Error = function.NewFuncError("nbf 错误")
+			return
 		}
 	}
 
@@ -237,6 +242,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	_, err = cliams.Encode(issuer)
 	if err != nil {
 		resp.Error = function.NewFuncError("编码错误")
+		return
 	}
 
 	// 颁发时间
@@ -245,6 +251,7 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 		cliams.Claims().IssuedAt, _ = strconv.ParseInt(iat, 10, 64)
 		if err != nil {
 			resp.Error = function.NewFuncError("iat 错误")
+			return
 		}
 	}
 
@@ -252,18 +259,21 @@ func (r JwtFunction) Run(ctx context.Context, req function.RunRequest, resp *fun
 	header, err := serialize(&jwt.Header{Type: jwt.TokenTypeJwt, Algorithm: jwt.AlgorithmNkey})
 	if err != nil {
 		resp.Error = function.NewFuncError("序列化错误")
+		return
 	}
 
 	// 体
 	payload, err := serialize(cliams)
 	if err != nil {
 		resp.Error = function.NewFuncError("序列化错误")
+		return
 	}
 
 	toSign := fmt.Sprintf("%s.%s", header, payload)
 	sig, err := issuer.Sign([]byte(toSign))
 	if err != nil {
 		resp.Error = function.NewFuncError("签名错误")
+		return
 	}
 	eSig := encodeToString(sig)
 

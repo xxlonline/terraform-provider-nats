@@ -8,11 +8,11 @@ import (
 	"context"
 	"crypto/ed25519"
 
+	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/nats-io/nkeys"
 )
@@ -76,6 +76,47 @@ func (r *NkeyResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 func (r *NkeyResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 }
 
+func UpdateNKey(data *NkeyResourceModel) error {
+	if data.ID.IsUnknown() {
+		return function.NewFuncError("读取 NKey 错误")
+	}
+
+	prefix, rawSeed, err := nkeys.DecodeSeed([]byte(data.ID.ValueString()))
+	if err != nil {
+		return err
+	}
+
+	if prefix == nkeys.PrefixByteOperator {
+		data.Type = types.StringValue("Operator")
+	} else if prefix == nkeys.PrefixByteAccount {
+		data.Type = types.StringValue("Operator")
+	} else if prefix == nkeys.PrefixByteUser {
+		data.Type = types.StringValue("User")
+	} else {
+		return function.NewFuncError("读取 NKey 错误")
+	}
+
+	keys, err := nkeys.FromSeed([]byte(data.ID.ValueString()))
+	if err != nil {
+		return function.NewFuncError("读取 NKey 错误")
+	}
+
+	subject, err := keys.PublicKey()
+	if err != nil {
+		return function.NewFuncError("读取 NKey 错误")
+	}
+	data.Subject = types.StringValue(subject)
+
+	pub, priv, err := ed25519.GenerateKey(bytes.NewReader(rawSeed))
+	if err != nil {
+		return function.NewFuncError("读取 NKey 错误")
+	}
+	data.Public = types.StringValue(b64Enc.EncodeToString(pub))
+	data.Private = types.StringValue(b64Enc.EncodeToString(priv))
+
+	return nil
+}
+
 func (r *NkeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data NkeyResourceModel
 
@@ -109,30 +150,11 @@ func (r *NkeyResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 	data.ID = types.StringValue(string(seed))
 
-	subject, err := keys.PublicKey()
+	err = UpdateNKey(&data)
 	if err != nil {
-		resp.Diagnostics.AddError("访问 NKey", err.Error())
+		resp.Diagnostics.AddError("读取 NKey 错误", err.Error())
 		return
 	}
-	data.Subject = types.StringValue(subject)
-
-	_, rawSeed, err := nkeys.DecodeSeed(seed)
-	if err != nil {
-		resp.Diagnostics.AddError("解析 NKey", err.Error())
-		return
-	}
-
-	pub, priv, err := ed25519.GenerateKey(bytes.NewReader(rawSeed))
-	if err != nil {
-		resp.Diagnostics.AddError("解析 NKey", err.Error())
-		return
-	}
-	data.Public = types.StringValue(b64Enc.EncodeToString(pub))
-	data.Private = types.StringValue(b64Enc.EncodeToString(priv))
-
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
-	tflog.Trace(ctx, "created a resource")
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -146,51 +168,11 @@ func (r *NkeyResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	if data.ID.IsUnknown() {
-		resp.Diagnostics.AddError(
-			"读取 NKey",
-			"Cannot read NATS NKey with unknown ID",
-		)
-		return
-	}
-
-	prefix, rawSeed, err := nkeys.DecodeSeed([]byte(data.ID.ValueString()))
+	err := UpdateNKey(&data)
 	if err != nil {
-		resp.Diagnostics.AddError("读取 NKey", err.Error())
+		resp.Diagnostics.AddError("读取 NKey 错误", err.Error())
 		return
 	}
-
-	if prefix == nkeys.PrefixByteOperator {
-		data.Type = types.StringValue("Operator")
-	} else if prefix == nkeys.PrefixByteAccount {
-		data.Type = types.StringValue("Operator")
-	} else if prefix == nkeys.PrefixByteUser {
-		data.Type = types.StringValue("User")
-	} else {
-		resp.Diagnostics.AddError("读取 NKey", "未知类型")
-		return
-	}
-
-	keys, err := nkeys.FromSeed([]byte(data.ID.ValueString()))
-	if err != nil {
-		resp.Diagnostics.AddError("读取 NKey", err.Error())
-		return
-	}
-
-	subject, err := keys.PublicKey()
-	if err != nil {
-		resp.Diagnostics.AddError("访问 NKey", err.Error())
-		return
-	}
-	data.Subject = types.StringValue(subject)
-
-	pub, priv, err := ed25519.GenerateKey(bytes.NewReader(rawSeed))
-	if err != nil {
-		resp.Diagnostics.AddError("解析 NKey", err.Error())
-		return
-	}
-	data.Public = types.StringValue(b64Enc.EncodeToString(pub))
-	data.Private = types.StringValue(b64Enc.EncodeToString(priv))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -200,6 +182,12 @@ func (r *NkeyResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := UpdateNKey(&data)
+	if err != nil {
+		resp.Diagnostics.AddError("读取 NKey 错误", err.Error())
 		return
 	}
 
