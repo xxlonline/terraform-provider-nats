@@ -69,6 +69,7 @@ func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.Config
 func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewNkeyResource,
+		NewJwtResource,
 	}
 }
 
@@ -77,9 +78,7 @@ func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasour
 }
 
 func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewJwtFunction,
-	}
+	return []func() function.Function{}
 }
 
 func New(version string) func() provider.Provider {

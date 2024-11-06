@@ -50,7 +50,7 @@ func (r *NkeyResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"type": schema.StringAttribute{
 				Computed:            false,
-				MarkdownDescription: "类型(Operator, Account, User)",
+				MarkdownDescription: "Type (Operator, Account, User)",
 				Required:            true,
 			},
 			"id": schema.StringAttribute{
@@ -77,8 +77,8 @@ func (r *NkeyResource) Configure(ctx context.Context, req resource.ConfigureRequ
 }
 
 func UpdateNKey(data *NkeyResourceModel) error {
-	if data.ID.IsUnknown() {
-		return function.NewFuncError("读取 NKey 错误")
+	if data.ID.IsNull() || data.ID.IsUnknown() {
+		return function.NewFuncError("NKey invalid")
 	}
 
 	prefix, rawSeed, err := nkeys.DecodeSeed([]byte(data.ID.ValueString()))
@@ -93,23 +93,23 @@ func UpdateNKey(data *NkeyResourceModel) error {
 	} else if prefix == nkeys.PrefixByteUser {
 		data.Type = types.StringValue("User")
 	} else {
-		return function.NewFuncError("读取 NKey 错误")
+		return function.NewFuncError("NKey invalid")
 	}
 
 	keys, err := nkeys.FromSeed([]byte(data.ID.ValueString()))
 	if err != nil {
-		return function.NewFuncError("读取 NKey 错误")
+		return err
 	}
 
 	subject, err := keys.PublicKey()
 	if err != nil {
-		return function.NewFuncError("读取 NKey 错误")
+		return err
 	}
 	data.Subject = types.StringValue(subject)
 
 	pub, priv, err := ed25519.GenerateKey(bytes.NewReader(rawSeed))
 	if err != nil {
-		return function.NewFuncError("读取 NKey 错误")
+		return err
 	}
 	data.Public = types.StringValue(b64Enc.EncodeToString(pub))
 	data.Private = types.StringValue(b64Enc.EncodeToString(priv))
@@ -134,25 +134,25 @@ func (r *NkeyResource) Create(ctx context.Context, req resource.CreateRequest, r
 	} else if data.Type.ValueString() == "User" {
 		keys, err = nkeys.CreateUser()
 	} else {
-		resp.Diagnostics.AddError("生成 NKey", "类型错误")
+		resp.Diagnostics.AddError("create NKey error", "type invalid")
 		return
 	}
 
 	if err != nil {
-		resp.Diagnostics.AddError("生成 NKey", err.Error())
+		resp.Diagnostics.AddError("create NKey error", err.Error())
 		return
 	}
 
 	seed, err := keys.Seed()
 	if err != nil {
-		resp.Diagnostics.AddError("访问 NKey", err.Error())
+		resp.Diagnostics.AddError("create NKey error", err.Error())
 		return
 	}
 	data.ID = types.StringValue(string(seed))
 
 	err = UpdateNKey(&data)
 	if err != nil {
-		resp.Diagnostics.AddError("读取 NKey 错误", err.Error())
+		resp.Diagnostics.AddError("create NKey error", err.Error())
 		return
 	}
 
@@ -170,7 +170,7 @@ func (r *NkeyResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	err := UpdateNKey(&data)
 	if err != nil {
-		resp.Diagnostics.AddError("读取 NKey 错误", err.Error())
+		resp.Diagnostics.AddError("read NKey error", err.Error())
 		return
 	}
 
@@ -187,7 +187,7 @@ func (r *NkeyResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 	err := UpdateNKey(&data)
 	if err != nil {
-		resp.Diagnostics.AddError("读取 NKey 错误", err.Error())
+		resp.Diagnostics.AddError("update NKey error", err.Error())
 		return
 	}
 

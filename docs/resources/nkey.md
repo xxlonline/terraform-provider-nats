@@ -17,7 +17,7 @@ NATS NKey
 
 ### Required
 
-- `type` (String) 类型(Operator, Account, User)
+- `type` (String) Type (Operator, Account, User)
 
 ### Read-Only
 
