@@ -196,7 +196,7 @@ func UpdateJWT(data *JwtResourceModel) error {
 	ccliams.Claims().Issuer = issuerPublicKey
 
 	// 签发时间
-	if data.Expires.IsNull() {
+	if data.IssuedAt.IsNull() {
 		ccliams.Claims().IssuedAt = time.Now().UTC().Unix()
 	} else {
 		ccliams.Claims().IssuedAt = data.IssuedAt.ValueInt64()
