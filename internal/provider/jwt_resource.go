@@ -169,7 +169,7 @@ func UpdateJWT(data *JwtResourceModel) error {
 		ocliams.Version = 2
 		ccliams = ocliams
 	} else if subType == nkeys.PrefixByteUser {
-		if issuerPrefix != nkeys.PrefixByteOperator {
+		if issuerPrefix != nkeys.PrefixByteAccount {
 			return function.NewFuncError("isser invalid")
 		}
 
