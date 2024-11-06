@@ -165,7 +165,7 @@ func UpdateJWT(data *JwtResourceModel) error {
 			}
 		}
 
-		ocliams.Type = jwt.OperatorClaim
+		ocliams.Type = jwt.AccountClaim
 		ocliams.Version = 2
 		ccliams = ocliams
 	} else if subType == nkeys.PrefixByteUser {
@@ -182,7 +182,7 @@ func UpdateJWT(data *JwtResourceModel) error {
 			}
 		}
 
-		ocliams.Type = jwt.OperatorClaim
+		ocliams.Type = jwt.UserClaim
 		ocliams.Version = 2
 		ccliams = ocliams
 	} else {
